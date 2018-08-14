@@ -1,0 +1,1279 @@
+<html xmlns:mso="urn:schemas-microsoft-com:office:office" xmlns:msdt="uuid:C2F41010-65B3-11d1-A29F-00AA00C14882">
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=edge; charset=utf-8" />
+<title>Attendance Discipline Advisor</title>
+<script type="text/javascript" language="javascript" src="datePicker.js"></script>
+
+<link href="datePicker.css" rel="stylesheet" type="text/css">
+<style type="text/css">
+body {
+	font-family:Arial, Helvetica, sans-serif;
+	color:#66666;
+}
+h1 {
+	font-size:18px;
+	font-weight: bold;
+	text-align:left;
+}
+hr {
+  border: 0;
+  width: 100%;
+}
+th {
+	background-color:#F26322;
+	height:35;
+	color:#FFF;
+	border-bottom:#e1e1e1 2px solid;
+	border-left:#e1e1e1 1px solid;
+	padding-bottom:5px;
+	padding-left:5px;
+	padding-right:5px;
+	border-top:#e1e1e1 1px solid;
+	border-right:#e1e1e1 1px solid;
+	padding-top:5px;
+}
+#table-bg{
+	background-color:#D5F1FF;
+}
+#border-bottom {
+	border-bottom:#e1e1e1 1px solid;
+}
+#Position-BG {
+	background-color:#D8D8D8;
+}
+</style>
+<script type="text/javascript" language="javascript">
+
+var now = new Date();
+var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());  //today's date without time considerations.
+var sixmonthsago = new Date();
+var onetwentydays = new Date();
+var lessthan30 = false;
+var thirtydaysago = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+thirtydaysago.setDate(thirtydaysago.getDate() - 30);
+
+var testableDates = [];
+var testableTypes = [];
+var testableIDs = [];
+
+var lettersOnly="abcdefghijklmnopqrstuvwxyz'-";
+var lettersNumbers="abcdefghijklmnopqrstuvwxyz0123456789";
+var numbersOnly="0123456789";
+var numbersPlus="0123456789.";
+var numbersSlash="0123456789/";
+var numbersTime="0123456789:";
+
+function validKeys(e, chars){
+	var key;
+	var keychar;
+	
+	if (window.event){
+	   key = window.event.keyCode;
+	}//end if
+	else if (e) {
+	   key = e.which;
+	}//end else if
+	else{
+	   return true;
+	}//end else
+	keychar = String.fromCharCode(key);
+	keychar = keychar.toLowerCase();
+	
+	// control keys
+	if ((key==null) || (key==0) || (key==8) || (key==9) || (key==13) || (key==27) || (key==32)){
+	   return true;
+	}//end if
+	else if (((chars).indexOf(keychar) > -1)){	
+	   return true;
+	}//end if
+	else{
+	   return false; 
+	}//end else
+}//end function validKeys(e, char)
+
+function isValidDate(testDate) {
+	var d;
+	if(testDate.value != ""){
+		d = new Date(testDate.value);
+		if ( Object.prototype.toString.call(d) !== "[object Date]" || isNaN(d.getTime()) ) {
+			alert("Please be sure to put in a valid date, in the format of mm/dd/yyyy");
+			testDate.focus();
+			testDate.style.backgroundColor = "#FFCCCC";
+			return false;
+		}//end if
+		if (d > today) {
+			alert("This date cannot be after today's date");
+			testDate.focus();
+			testDate.style.backgroundColor = "#FFCCCC";
+			return false;
+		}//end if
+	}//end if
+	return true;
+}//end function isValidDate(testDate) modified from from:  http://stackoverflow.com/questions/1353684/detecting-an-invalid-date-date-instance-in-javascript
+
+function sixMonthsCalc(){
+	var year = today.getFullYear();
+	var month = today.getMonth() - 6;
+	var day = today.getDate();
+	if (month < 0){
+		//if the month winds up negative, add 12 and decrement the year.
+		month = month + 12;
+		year = year - 1;
+	}//end if
+	var isaleap = ((year % 4 == 0) && (year % 100 != 0)) || (year % 400 == 0);
+	if (month == 8 || month == 3 || month == 5 || month == 10){ //September, April, June, November in 0-11 scale of Javascript.
+		if (day > 30) {
+			day = 30;
+		}//end if
+	}//end if
+	if (month == 1){ //for february
+		if (isaleap){
+			if (day > 29){
+				day = 29;
+			}//end if
+		}//end if
+		else {
+			if (day > 28){
+				day = 28;
+			}//end if
+		}//end if
+	}//end if
+	sixmonthsago = new Date(year, month, day); 
+}//end sixMonthsCalc()
+
+function showSpan(objectId) {
+	//open only the requested content.
+	document.getElementById(objectId).style.display = "block";
+}//end function showSpan(objectId)  
+
+function hideSpan(objectId) {
+	//hide only the requested content.
+	document.getElementById(objectId).style.display = "none";
+}//end hideSpan(objectId) 
+
+function changeReqOcc(thisOcc) {
+	var cB = checkBasic();
+	if (!cB){
+		return false;
+	}//end if
+	if(thisOcc == ""){
+		alert("The Current Level of Discipline is a required field");
+		document.getElementById("LADLevel").focus();
+		document.getElementById("LADLevel").style.backgroundColor = "#FFCCCC";
+		return false;
+	}//error
+	else{
+		var cOD = checkOccDate(thisOcc);
+		//Change how many required occurrences based on the selected option in "thisOcc"
+		if (thisOcc == "Final" || thisOcc == "Counseling"){
+			document.getElementById("occ2req").innerHTML = " Occurrence #2:";
+			document.getElementById("occ3req").innerHTML = " Occurrence #3:";
+		}//end if
+		else {
+			document.getElementById("occ2req").innerHTML = "<strong><span style=\"color: #FF0000\">*</span> Occurrence #2:</strong>";
+			document.getElementById("occ3req").innerHTML = "<strong><span style=\"color: #FF0000\">*</span> Occurrence #3:</strong>";
+		}//end else
+		document.getElementById("actualLevel").value = thisOcc;
+		return cOD;
+	}//end if
+}//end function changeReqOcc(thisOcc)
+
+function checkOccDate(occDate) {
+	var f = document.forms["AttendanceDiscAdv"];
+	//if LADLevel is not NA, LADdate must be non-null.
+	if(occDate == "NA"){
+		f.LADdate.value = "";
+	}//end if
+	if(occDate != "NA" && f.LADdate.value == ""){
+		alert("If the Current Level of Discipline is 'Coaching' or higher, the Date of Last Attendance Discipline is a required field");
+		f.LADdate.focus();
+		f.LADdate.style.backgroundColor = "#FFCCCC";
+		return false;
+	}//end if
+	//if LADdate is non-null, it cannot be more than 6 calendar months ago or prior to hire date.
+	if (f.LADdate.value != ""){
+		return validDiscDate('LADdate');
+	}//end if 
+	else{
+		return true;
+	}//end else
+}//end function checkOccDate() 
+
+function thisCentury(enteredDate){
+	var testdate1 = new Date(enteredDate);
+	if (testdate1.getFullYear() < 1978) {
+    	testdate1.setFullYear(testdate1.getFullYear() + 100);
+	}//end if
+	return testdate1;
+}//end function
+
+function validDiscDate(discField) { 
+	var testdate1 = thisCentury(document.getElementById(discField).value);
+	var testdate2 = thisCentury(document.getElementById('ascHireDate').value);
+	if (testdate1 < sixmonthsago){ 
+		if(discField == 'LADdate'){
+			alert("If the Date of Last Attendance Discipline is over 6 months ago, the Current Level of Discipline reverts to 'N/A', per SOP.");
+			document.getElementById('LADdate').value = "";
+			document.getElementById('LADLevel').value = "NA";
+			document.getElementById('actualLevel').value = "NA";
+			changeReqOcc("NA");
+		}//end if
+		else{
+			alert("This date cannot be over 6 months ago");
+			document.getElementById(discField).focus();
+			document.getElementById(discField).style.backgroundColor = "#FFCCCC";
+			return false;
+		}//end if
+	}//end if
+	if (testdate1 < testdate2){
+		alert("This date cannot be prior to the start date");
+		document.getElementById(discField).focus();
+		document.getElementById(discField).style.backgroundColor = "#FFCCCC";
+		return false;
+	}//end if
+	return true;
+}//end function validDiscDate(discField)
+
+function check120() {
+	var f = document.forms["AttendanceDiscAdv"];
+	//set date that is 120 days after hire on form.
+	var tempDate = thisCentury(f.ascHireDate.value);
+	tempDate.setDate(tempDate.getDate() + 119);
+	onetwentydays = tempDate;
+	var discDate;
+	if (f.LADdate.value != "") {
+		//If the occurrence date (if provided) is within 120 days of hire and and today is after 120 days and "thisOccLevel" value is higher than NA, show the Discipline adjustment verbiage.
+		discDate = thisCentury(f.LADdate.value);
+		if (discDate < sixmonthsago){ 
+			alert("If the Date of Last Attendance Discipline is over 6 months ago, the Current Level of Discipline reverts to 'N/A', per SOP.");
+			document.getElementById('LADdate').value = "";
+			document.getElementById('LADLevel').value = "NA";
+			document.getElementById('actualLevel').value = "NA";
+			changeReqOcc("NA");
+		}//end if
+		else{
+			if (discDate < tempDate && today > tempDate && f.LADLevel.value != "NA" && f.LADLevel.value != "") {
+				showSpan('LADDisp');
+				document.getElementById('actualLevel').value = "Coaching";
+				changeReqOcc("Coaching");
+			}//end if
+			else {
+				hideSpan('LADDisp');
+				document.getElementById('actualLevel').value = document.getElementById('LADLevel').value; 
+				changeReqOcc(document.getElementById('LADLevel').value);
+			}//end else
+		}//end else
+	}//end if
+	else {
+		hideSpan('LADDisp');
+	}//end else
+}//end function check120()
+
+function changeOccurrence(whichOcc, occType) {
+	if(occType == "Tardiness"){
+		//occXverbiage = "A tardy is an occurrence unless excused by management."
+		document.getElementById("occ" + whichOcc + "verbiage").innerHTML = "A tardy is an occurrence unless excused by management.";
+		//occXdatetype = "Date of the Tardy occurrence:"
+		document.getElementById("occ" + whichOcc + "datetype").innerHTML = "Date of the Tardy occurrence:";
+		//hide occXsecondpunch
+		hideSpan("occ" + whichOcc + "secondpunch");
+		//hide occXNCNSdisp
+		hideSpan("occ" + whichOcc + "NCNSdisp");
+		//display occXtable
+		showSpan("occ" + whichOcc + "table");
+	}//end if
+	else if(occType == "Two Missed Punches"){
+		//occXverbiage = "Two missed punches are counted as one (1) occurrence, and must have occurred on different dates."
+		document.getElementById("occ" + whichOcc + "verbiage").innerHTML = "Two missed punches are counted as one (1) occurrence, and must have occurred on different dates.";
+		//occXdatetype = "Date of 1st missed punch:"
+		document.getElementById("occ" + whichOcc + "datetype").innerHTML = "Date of 1st missed punch:";
+		//show occXsecondpunch
+		showSpan("occ" + whichOcc + "secondpunch");
+		//hide occXNCNSdisp
+		hideSpan("occ" + whichOcc + "NCNSdisp");
+		//display occXtable
+		showSpan("occ" + whichOcc + "table");
+	}//end if
+	//else if occType == Absence
+	else if(occType == "Absence"){
+		//occXverbiage = "Consecutive full shift absences count as one (1) occurrence. If associate had sick time to cover a full shift absence then the absence is excused and should not be entered on this form as an occurrence unless it is a no call/no show."
+		document.getElementById("occ" + whichOcc + "verbiage").innerHTML = "Consecutive full shift absences count as one (1) occurrence. If associate had sick time to cover a full shift absence then the absence is excused and should not be entered on this form as an occurrence unless it is a no call/no show."; 
+		//occXdatetype = "Date of the full shift absence:"
+		document.getElementById("occ" + whichOcc + "datetype").innerHTML = "Date of the full shift absence:";
+		//hide occXsecondpunch
+		hideSpan("occ" + whichOcc + "secondpunch");
+		//show occXNCNSdisp
+		showSpan("occ" + whichOcc + "NCNSdisp");
+		//display occXtable
+		showSpan("occ" + whichOcc + "table");
+	}//end if
+	else{
+		//else hide occXtable and remove occXverbiage
+		hideSpan("occ" + whichOcc + "table");
+		document.getElementById("occ" + whichOcc + "verbiage").innerHTML = "";
+	}//end if 
+}//end function changeOccurrence(whichOcc, occType)
+
+function prevNCNS(currNCNS){
+	var f = document.forms["AttendanceDiscAdv"];
+	var prevType;
+	var prevNum;
+	//while currNCNS != 1, currNCNS--
+	for (i=currNCNS; i!=1; i--){
+		//if previous occtypeX = Absence
+		prevType = document.getElementById('occtype' + (i-1));
+		prevNum = i-1;
+		if(prevType.options[prevType.selectedIndex].value == "Absence"){
+			//and previous occXNCNS[0] is checked
+			if(document.getElementById('occ' + prevNum + 'NCNSYes').checked){
+				//show current occXconsdisp
+				if (document.getElementById('occ' + currNCNS + 'NCNSYes').checked){
+					showSpan('occ' + currNCNS + 'consdisp');
+				}//end if
+			}//end if 
+			//and previous occXNCNS[1] is checked
+			else if(document.getElementById('occ' + prevNum + 'NCNSNo').checked){
+				//hide current occXconsdisp 
+				if (prevNum == currNCNS - 1){
+					hideSpan('occ' + currNCNS + 'consdisp');
+				}//end if
+			}//end if
+			// if neither previous occXNCNS is checked, give an error.
+			else{
+				alert("Please advise us whether or not the previous absence is No Call/No Show");
+				document.getElementById('occ' + prevNum + 'NCNSYes').focus();
+				document.getElementById('occ' + prevNum + 'NCNSYes').style.backgroundColor = "#FFCCCC";
+				return false;
+			}//end else
+		}//end if
+	}//end for
+}//end function prevNCNS(currNCNS)
+
+function checkBasic() {
+	var f = document.forms["AttendanceDiscAdv"];
+	//Manager's User ID Required
+	if (f.mgrUsrID.value.length < 3){
+		alert("Manager's User ID is a required field");
+		f.mgrUsrID.focus();
+		f.mgrUsrID.style.backgroundColor = "#FFCCCC";
+		return false;
+	}//end if
+	
+	//Store Number Required
+	if (f.strNbr.value.length < 4){
+		alert("Store number is a required field and must be a 4 digit number");
+		f.strNbr.focus();
+		f.strNbr.style.backgroundColor = "#FFCCCC";
+		return false;
+	}//end if
+	
+	//State Required
+	if (f.state.value == ""){
+		alert("State location is a required field");
+		f.state.focus();
+		f.state.style.backgroundColor = "#FFCCCC";
+		return false;
+	}//end if
+	
+	var aS = allowedState(document.getElementById('state')); 
+	
+	if (!aS){
+		return false;
+	}//end if
+	
+	//Associate ID Required
+	if (f.ascID.value.length < 9){
+		alert("Associate ID is a required field and must be a 9 digit number");
+		f.ascID.focus();
+		f.ascID.style.backgroundColor = "#FFCCCC";
+		return false;
+	}//end if
+	
+	//Associate Hire Date Required
+	if (f.ascHireDate.value == ""){
+		alert("Associate Hire Date is a required field");
+		f.ascHireDate.focus();
+		f.ascHireDate.style.backgroundColor = "#FFCCCC";
+		return false;
+	}//end if
+	
+	return true;
+}// end function checkBasic()
+
+function allowedState(currentState) { //validate this works.
+	if (currentState.options[currentState.selectedIndex].value == "GU" || currentState.options[currentState.selectedIndex].value == "VI"){
+		alert("This form does not currently support your location.  Please reach out to your local HR partner for advice on Attendance Discipline.");
+		currentState.focus();
+		currentState.style.backgroundColor = "#FFCCCC";
+		return false;
+	}//end if
+	return true;
+}//function allowedState(currentState)
+
+function pushArrays(idoftestDate, testType){ //Updates all information to testable arrays.
+	var testDate = thisCentury(document.getElementById(idoftestDate).value);
+	testableDates.push(testDate);
+	testableTypes.push(testType);
+	testableIDs.push(idoftestDate);
+}//end function pushArrays(idoftestDate, testType)
+
+function testArrays(idoftestDate, testType) { 
+	var f = document.forms["AttendanceDiscAdv"];
+	var testDate;
+	if(idoftestDate == "tomorrow"){
+		testDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());  //today's date without time considerations.
+		testDate.setDate(testDate.getDate() + 1);
+	}//end if
+	else {
+		testDate = new Date(document.getElementById(idoftestDate).value);
+	}//end if
+	//check to see if this date is already in the testable arrays.
+	for (var i=0; i < testableDates.length; i++){
+		if (testDate.getTime() === testableDates[i].getTime()){
+		//if yes, the date's type cannot be "Absence" or testType
+			if(testableTypes[i] === "Absence"){
+				//give appropriate error message
+				alert ("A " + testType + " occurrence cannot take place on the same date as an Absence; please correct one");
+				//move focus to bad previous field
+				document.getElementById(testableIDs[i]).focus();
+				//turn it color
+				document.getElementById(testableIDs[i]).style.backgroundColor = "#FFCCCC";
+				//turn current field a color
+				document.getElementById(idoftestDate).style.backgroundColor = "#FFCCCC";
+				return false;
+			}//end if
+			else if(testableTypes[i] === testType){
+				//give appropriate error message
+				alert ("Two " + testType + " cannot take place on the same date; please correct one");
+				//move focus to bad previous field
+				document.getElementById(testableIDs[i]).focus();
+				//turn it color
+				document.getElementById(testableIDs[i]).style.backgroundColor = "#FFCCCC";
+				//turn current field a color
+				document.getElementById(idoftestDate).style.backgroundColor = "#FFCCCC";
+				return false;
+			}//end if
+		}//end if
+		
+		if(testableDates[i] > thirtydaysago){
+			lessthan30 = true;
+		}//end if
+	}//end for
+	return true;
+}//end function testArrays(idoftestDate, testType)
+
+function resetArrays(){
+	//if myfunction errors out, reset arrays to blank.
+	testableDates = [];
+	testableTypes = [];
+	testableIDs = [];
+}//end function resetArrays()
+
+function myfunction()
+{   
+	var allInfo = null;
+	var f = document.forms["AttendanceDiscAdv"];
+	var recommendation = "";
+	var answeredOccurrences = 0;
+	var cta = false;
+	
+	now = new Date();
+	today = new Date(now.getFullYear(), now.getMonth(), now.getDate());  //today's date without time considerations.
+	onetwentydays = new Date();
+	sixMonthsCalc();
+	
+	resetArrays();
+		
+	if (f.actualLevel.value != ""){
+		cta = changeReqOcc(f.actualLevel.value); //validate basic fields up to Current Level of Discipline.
+	}//end if
+	else{
+		f.actualLevel.value = f.LADLevel.value;
+		cta = changeReqOcc(f.LADLevel.value);
+	}//end if
+	
+	if (!cta){
+		return false;
+	}//end if
+	
+	check120();
+	
+	allInfo = "Associate ID: " + f.ascID.value + "    Store/Location #: " + f.strNbr.value + "    Associate Hire Date:  " + f.ascHireDate.value + "|"; 
+
+	//validate that knownAccom was answered
+	if(f.knownAccom[0].checked){
+		allInfo += "There is a known Accommodation, FMLA, Intermittent, EEO/Agency Charge, or Worker's Compensation situation with this associate." + "|";
+		recommendation = "Take No Action";
+	}//end if
+	else if(f.knownAccom[1].checked){
+		//do nothing
+	}//end if
+	else{
+		alert("Please confirm whether or not there is a known Accommodation, FMLA, Intermittent, EEO/Agency Charge, or Worker's Compensation situation with this associate");
+		f.knownAccom[0].focus();
+		f.knownAccom[0].style.backgroundColor = "#FFCCCC";
+		return false;
+	}//end if 
+		
+	//Validate whether or not the store location delivered correct discipline to a new associate.
+	if( f.LADdate.value != "" && today < onetwentydays && f.LADLevel.value != "Final"){ 
+		allInfo += "The Last Attendance Discipline Level is within 120 days of the Associate's Hire Date and NOT a Final Warning." + "|";
+	}//end if
+		
+	allInfo += "Last Discipline Date: " + f.LADdate.value + "    Last Discipline Level: ";
+	
+	//if actualLevel == Coaching and actualLevel != LADLevel, "Last Discipline Level: Final, treated as a Coaching per SOP"
+	if(f.actualLevel.value == "Coaching" && f.LADLevel.value != f.actualLevel.value){ 
+		allInfo += f.LADLevel.value + ", treated as a Coaching per SOP";
+	}//end if
+	else{
+		allInfo += f.actualLevel.value;
+	}//end else
+	allInfo += "|";
+	
+	//For each occurrence 1-3, if occtypeX.value != ""
+	for (var j=1; j<=3; j++) {
+		thisOcctype = document.getElementById('occtype' + j);
+		if(thisOcctype.value != ""){
+			if(thisOcctype.value == "Tardiness"){
+				if(document.getElementById('occ' + j + 'date1').value != ""){
+					//check that occXdate1 is a non null, and less than sixmonthsago
+					cta = validDiscDate('occ' + j + 'date1');
+					
+					if(!cta){
+						return false;
+					}//end if
+					
+					//check to see if this date is already in the testable arrays.
+					cta = testArrays('occ' + j + 'date1', "Tardiness");
+					
+					if(!cta){
+						return false;
+					}//end if
+
+					//add this information to the testable arrays.
+					pushArrays('occ' + j + 'date1', "Tardiness");
+						
+					//add relevant data to allInfo
+					allInfo += "Occurrence " + j + ": Tardy on " + document.getElementById('occ' + j + "date1").value + "|";
+					
+					answeredOccurrences++;
+				}//end if
+				else{
+					alert("Please provide the date of the tardy occurrence");
+					document.getElementById('occ' + j + 'date1').focus();
+					document.getElementById('occ' + j + 'date1').style.backgroundColor = "#FFCCCC";
+					resetArrays();
+					return false;
+				}//end else
+			}//end if
+			
+			else if(thisOcctype.value == "Two Missed Punches"){
+				if(document.getElementById('occ' + j + 'date1').value != "" && document.getElementById('occ' + j + 'date2').value != ""){
+					//check that occXdate1 and occXdate2 are non null, and less than sixmonthsago
+					cta = validDiscDate('occ' + j + 'date1');
+					
+					if(!cta){
+						return false;
+					}//end if
+					
+					cta = validDiscDate('occ' + j + 'date2');
+					
+					if(!cta){
+						return false;
+					}//end if
+					
+					if (document.getElementById('occ' + j + 'date1').value != document.getElementById('occ' + j + 'date2').value){
+						//confirm that the dates are not equal to each other.
+						
+						//check to see if either date is already in the testable arrays.
+						cta = testArrays('occ' + j + 'date1', "Two Missed Punches");
+						
+						if(!cta){
+							return false;
+						}//end if
+						
+						cta = testArrays('occ' + j + 'date2', "Two Missed Punches");	
+						
+						if(!cta){
+							return false;
+						}//end if
+									
+						//add this information to the testable arrays.	
+						pushArrays('occ' + j + 'date1', "Two Missed Punches");
+						pushArrays('occ' + j + 'date2', "Two Missed Punches");
+					
+						//add relevant data to allInfo
+						allInfo += "Occurrence " + j + ": Two missed punches on " + document.getElementById('occ' + j + "date1").value + " and " +
+							document.getElementById('occ' + j + "date2").value + "|";
+							
+						answeredOccurrences++;
+					}//end if
+					else{
+						alert("The dates of two missed punches for one occurrence cannot be the same");
+						document.getElementById('occ' + j + 'date1').focus();
+						document.getElementById('occ' + j + 'date1').style.backgroundColor = "#FFCCCC";
+						document.getElementById('occ' + j + 'date2').style.backgroundColor = "#FFCCCC";
+						return false;
+					}//end else
+				}//end if
+				else{
+					alert("Please provide the dates of two missed punches for one occurrence");
+					document.getElementById('occ' + j + 'date1').focus();
+					document.getElementById('occ' + j + 'date1').style.backgroundColor = "#FFCCCC";
+					document.getElementById('occ' + j + 'date2').style.backgroundColor = "#FFCCCC";
+					return false;
+				}//end if
+			}//end if
+			
+			else if(thisOcctype.value == "Absence"){
+				if(document.getElementById('occ' + j + 'date1').value != ""){
+					//check that occXdate1 is a non null, and less than sixmonthsago
+					cta = validDiscDate('occ' + j + 'date1');
+					
+					if(!cta){
+						return false;
+					}//end if
+					
+					//check to see if this date is already in the testable arrays.
+					cta = testArrays('occ' + j + 'date1', "Absence");
+					
+					if(!cta){
+						return false;
+					}//end if
+					
+					//verify that occXNCNS radio buttons have been clicked.
+					if(document.getElementById('occ' + j + 'NCNSYes').checked){  
+						//if "yes" clicked, 
+						if(recommendation != "Take No Action" && recommendation != "Termination"){
+							if(f.actualLevel.value == "Final"){
+								recommendation = "Termination";
+								answeredOccurrences = 3;
+							}//end if
+							else{
+								recommendation = "Final";
+								answeredOccurrences = 3;
+							}//end else
+						}//end if
+					}//end if
+					else if(document.getElementById('occ' + j + 'NCNSNo').checked){
+						//do nothing
+					}//end if
+					else {
+						alert("Please confirm whether or not this absence is a No Call/No Show occurrence");  
+						document.getElementById('occ' + j + 'NCNSYes').focus();
+						document.getElementById('occ' + j + 'NCNSYes').style.backgroundColor = "#FFCCCC";
+						return false;	
+					}//end else
+					
+					prevNCNS(j);
+					
+					if(j>1){
+						if(document.getElementById('occ' + j + 'consdisp').style.display == "block"){
+							if(document.getElementById('occ' + j + 'consYes').checked){
+								if(recommendation != "Take No Action" && recommendation != "Termination"){ 
+									recommendation = "Termination";
+									answeredOccurrences = 3;
+								}//end if
+							}//end if
+							else if(document.getElementById('occ' + j + 'consNo').checked){
+								//do nothing
+							}//end if
+							else{
+								alert("Please confirm whether or not this occurrence is a consecutively scheduled shift to the previous No Call/No Show occurrence");
+								document.getElementById('occ' + j + 'consYes').focus();
+								document.getElementById('occ' + j + 'consYes').style.backgroundColor = "#FFCCCC";
+								return false;
+							}//end else
+						}//end if
+					}//end if
+							
+					//add this information to the testable arrays.
+					pushArrays('occ' + j + 'date1', "Absence");
+							
+					//add relevant data to allInfo
+					allInfo += "Occurrence " + j + ": Unexcused absence on " + document.getElementById('occ' + j + "date1").value;
+					if(document.getElementById('occ' + j + 'NCNSYes').checked){
+						allInfo += ", No call/No Show";
+						if(j>1){
+							if(document.getElementById('occ' + j + 'consYes').checked){
+								allInfo += ".  This is a consecutively scheduled shift to the previous shift.";
+							}//end if 
+						}//end if
+					}//end if
+					allInfo += "|";
+					
+					answeredOccurrences++;
+				}//end if
+				else{
+					alert("Please provide the date of the absence");
+					document.getElementById('occ' + j + 'date1').focus();
+					document.getElementById('occ' + j + 'date1').style.backgroundColor = "#FFCCCC";
+					return false;
+				}//end if
+			}//end if
+		}//end if
+	}//end for
+	
+	//if the arrays are empty:
+	if(testableDates.length < 1){
+		alert("No Discipline Recommended: Not enough occurrences have been supplied to validate moving the associate to the next level of Discipline at this time.  Please refer to the SOP for additional questions.");
+		return false;
+	}//end if
+		
+	testArrays("tomorrow", "Absence");
+	
+	//if all occurrences are over 30 days ago:
+	if (!lessthan30){
+		allInfo += "All occurrences with this associate are over 30 days ago." + "|";
+		recommendation = "Take No Action";
+	}//end if
+	
+	//if still within 120 days of hire and they have not already earned a final warning and they have not already gotten a final or termination from another step
+	if(today < onetwentydays && f.actualLevel.value != 'Final' && recommendation == ""){
+		if (answeredOccurrences < 3){
+			alert("No Discipline Recommended: Not enough occurrences have been supplied to validate moving the associate to the next level of Discipline at this time.  Please refer to the SOP for additional questions.");
+			return false;
+		}//end if
+		else{
+			recommendation = "Final";  //per SOP
+		}//end else
+	}//end if
+	
+	//Recommendation Math	
+	if (f.actualLevel.value == 'Counseling' || f.actualLevel.value == 'Final'){ 
+		if (answeredOccurrences < 1){
+			alert("No Discipline Recommended: Not enough occurrences have been supplied to validate moving the associate to the next level of Discipline at this time.  Please refer to the SOP for additional questions.");
+			return false;
+		}//end if
+		else {
+			if (recommendation == ""){ //meaning none of the previous steps have resulted in a discipline.
+				if (f.actualLevel.value == 'Counseling'){
+					recommendation = "Final";
+				}//end if
+				if(f.actualLevel.value == 'Final'){
+					recommendation = "Termination";
+				}//end if
+			}//end if
+		}//end else
+	}//end if
+	else{ //(any other level)	
+		if (answeredOccurrences < 3){
+			alert("No Discipline Recommended: Not enough occurrences have been supplied to validate moving the associate to the next level of Discipline at this time.  Please refer to the SOP for additional questions.");
+			return false;
+		}//end if
+		else{
+			if (recommendation == ""){ //meaning none of the previous steps have resulted in a discipline.	
+				if (f.actualLevel.value == 'Coaching'){
+					recommendation = "Counseling";
+				}//end if
+				else if (f.actualLevel.value == "NA"){
+					recommendation = "Coaching";
+				}//end if
+			}//end if
+		}//end else
+	}//end else
+
+	
+	allInfo +=  "Recommended Discipline Level: " + recommendation + "|";	
+	
+	var gooddate = (today.getMonth() + 1) + "/" + today.getDate() + "/" + today.getFullYear();
+	
+	allInfo += "Provided to Manager User ID: " + f.mgrUsrID.value + "    Date: " + gooddate + "|";
+	
+	f.subject.value = "Attendance Request ";
+	
+	//create Submission page per recommendation and state info.
+	//update subject line recommendation and state info.
+		// Coaching
+		if(recommendation == "Coaching"){
+			f.eSubmissionTitle.value = "HR Department Recommendation: Coaching";
+			f.eSubmissionMessage.value = "<center><p style=\"width:60%;\">Managers are required to provide a Coaching following 3 occurrences in a six (6) month period.</p></center>";
+			f.subject.value +=  "- Field Took Action X-MAILER: " + f.mgrUsrID.value;
+			if(f.state.value == "AK" || f.state.value == "HI"){ 
+				f.eSubmissionMessage.value += "<center><p style=\"width:60%; text-align:center\">If you have any concerns or questions about this recommendation, please work with your local HR partner.</p></center>";
+			}//end if
+			else{
+				f.eSubmissionMessage.value += "<center><p style=\"width:60%;\">A ticket has been created with the HR Department to document this recommendation. If you have any concerns or questions, reach out to the HR Department with the ticket number included on the email you will receive.</p></center>";
+			}//end if
+		}//end if
+		
+		// Counseling
+		if(recommendation == "Counseling"){
+			f.eSubmissionTitle.value = "HR Department Recommendation: Counseling";
+			f.eSubmissionMessage.value = "<center><p style=\"width:60%;\">Managers are required to issue a Counseling after an active Coaching for attendance has already been issued and the associate has three (3) additional occurrences.</p></center>";
+			f.subject.value +=  "- Field Took Action X-MAILER: " + f.mgrUsrID.value;
+			if(f.state.value == "AK" || f.state.value == "HI"){ 
+				f.eSubmissionMessage.value += "<center><p style=\"width:60%;\">If you have any concerns or questions about this recommendation, please work with your local HR partner.</p></center>";
+			}//end if
+			else{
+				f.eSubmissionMessage.value += "<center><p style=\"width:60%;\">A ticket has been created with the HR Department to document this recommendation. If you have any concerns or questions, reach out to the HR Department with the ticket number included on the email you will receive.</p></center>";
+			}//end if
+		}//end if
+		
+		// Final
+		if(recommendation == "Final"){
+			f.eSubmissionTitle.value = "HR Department Recommendation: Final";
+			f.eSubmissionMessage.value = "<center><p style=\"width:60%;\">Managers are required to issue a Final Warning after an active Counseling for attendance has already been issued and the associate has one (1) additional occurrence.  A Final Warning can also be administered for a single no call/no show whether or not there are other active disciplinary actions.</p></center>";
+			f.subject.value +=  "- Field Took Action X-MAILER: " + f.mgrUsrID.value;
+			if(f.state.value == "AK" || f.state.value == "HI"){ 
+				f.eSubmissionMessage.value += "<center><p style=\"width:60%;\">If you have any concerns or questions about this recommendation, please work with your local HR partner.</p><center>";
+			}//end if
+			else{
+				f.eSubmissionMessage.value += "<center><p style=\"width:60%;\">A ticket has been created with the HR Department to document this recommendation. If you have any concerns or questions, reach out to the HR Department with the ticket number included on the email you will receive.</p></center>";
+			}//end if
+		}//end if
+		
+		// Termination
+		if(recommendation == "Termination"){
+			f.eSubmissionTitle.value = "HR Department Recommendation: Termination";
+			f.eSubmissionMessage.value = "<center><p style=\"width:60%;\">Managers are required to administer a Termination after an active Final Counseling has been issued and the associate has one (1) additional occurrence. Terminations can also be administered for job abandonment whether or not there are other active disciplinary actions.</p></center>";
+			f.subject.value +=  "- Field Took Action X-MAILER: " + f.mgrUsrID.value;
+			if(f.state.value == "AK" || f.state.value == "HI"){ 
+				f.eSubmissionMessage.value += "<center><p style=\"width:60%;\">If you have any concerns or questions about this recommendation, please work with your local HR partner.</p></center>";
+			}//end if
+			else{
+				f.eSubmissionMessage.value += "<center><p style=\"width:60%;\">A ticket has been created with the HR Department to document this recommendation. If you have any concerns or questions, reach out to the HR Department with the ticket number included on the email you will receive.</p></center>";
+			}//end if
+		}//end if
+		
+		// Take No Action 
+		if(recommendation == "Take No Action"){
+			f.eSubmissionTitle.value = "HR Department Recommendation: Take No Action";
+			if(f.state.value == "AK" || f.state.value == "HI"){ 
+				f.eSubmissionMessage.value = "<center><p style=\"width:60%;\">Please work with your HR partner regarding appropriate discipline action in this case.</p></center>";
+				f.subject.value +=  "- Field Took Action X-MAILER: " + f.mgrUsrID.value;
+			}//end if
+			else{
+				f.eSubmissionMessage.value = "<center><p style=\"width:60%;\">A ticket has been created and the HR Department will contact you.</p></center>";
+				f.subject.value +=  "X-MAILER: " + f.mgrUsrID.value;
+			}//end if
+		}//end if
+		
+		f.eSubmissionMessage.value += "<center><p style=\"width:60%;\">Click the OK button to return to the Attendance Discipline Advisor form.  DO NOT press the Back button on your web browser.</p></center>";
+	
+	f.allData.value = allInfo;
+	return true;
+}//end myFunction()
+
+function clearFields(){
+	var r = confirm("Your work will be lost. Do you wish to continue?"); //alert loss of work.
+	if(r){//if they clicked "okay"
+		window.location.reload(); //reload window.
+		window.location.hash = "Top"; // go to top.
+	}//end if
+}//end function clearFields()
+</script>
+</head>
+
+<body bgcolor="#FFFFFF" onLoad="this.document.AttendanceDiscAdv.mgrUsrID.focus(); sixMonthsCalc();">
+<center>
+<form NAME="AttendanceDiscAdv" ID="AttendanceDiscAdv" ACTION="https://FAKEFAKE.COM" METHOD="POST"  style="width:860px;"> <!-- This will need a new post action URL. -->
+
+    <input type="hidden" name="mailTo" value="FAKE@FAKE.com"> 
+    <input type="hidden" name="allData" value="Error in JavaScript">
+    <input type="hidden" name="subject" value="Attendance Request ">
+    <input type="hidden" name="team" value="HR Department">
+    <input type="hidden" name="type" value="Attendance Discipline Advisor">
+    <input type="hidden" name="from" value="FAKE@FAKE.com">
+    <input type="hidden" name="eSubmissionTitle" value="Error in Javascript ">
+    <input type="hidden" name="eSubmissionMessage" value="Error in Javascript">
+    <input type="hidden" name="returnAddress" value="https://FAKEFAKE.COM/Forms/attendance_discipline_advisor.html"> <!-- This will need a new post action URL. -->
+    <input type="hidden" name="actualLevel" id="actualLevel" value=""> <!-- Saves actual discipline level, do not remove -->
+  	<br>
+    <img src="" style="margin-top:-20px; float:right;  vertical-align:bottom"> <!-- This will need a new logo. -->
+    <br>
+    <h1>Attendance Discipline Advisor</h1>
+    <hr>
+    <div align="left" style="font-size:12px; color:#666">
+  		<p>Store, Asset Protection, and RLC management/HR partners may use this form to receive recommended discipline action based on current occurrences and previous discipline administered according to the Attendance and Punctuality SOP.</p>
+		<p>Guam, Virgin Islands, DC, Supply Chain, and corporate office management should not use this form.  Please reach out to your local HR Partner for assistance.</p>
+  		<p>Fields with a red asterisk (<span style="color: #FF0000">*</span>) are required.</p>
+  	</div>
+ 	<table width="100%" border="0" cellpadding="2" cellspacing="4"  style="background-color:#BFBFBF; font-size:12px; font-weight:bold"  >
+ 		<tr>
+    		<td colspan="7">
+    			<h1>Associate and Manager Information:</h1>
+            </td>
+        </tr>
+        <tr>
+            <td width="108" valign="top" align="right" title="Please provide your USRID">
+                <span style="color: #FF0000">*</span> Manager USRID: 
+            </td>
+            <td width="69" valign="top" title="Please provide your USRID">
+                <input type="text" name="mgrUsrID" id="mgrUsrID" value="FAKE123" size="10" maxlength="10" onKeyPress="return validKeys(this, lettersNumbers)" onBlur="this.style.backgroundColor='#ffffff'" readonly>
+            </td>
+            <td width="61" valign="top" title="Please provide the store number of the associate under review">
+                <span style="color: #FF0000">*</span> Store #: 
+            </td>
+            <td width="63" valign="top" title="Please provide the store number of the associate under review">
+                <input type="text" name="strNbr" id="strNbr"  size="4" maxlength="4" onKeyPress="return validKeys(this, numbersOnly)" onBlur="this.style.backgroundColor='#ffffff'" value="0123" readonly>
+            </td>
+            <td width="46" valign="top" title="Please provide the state or territory the store is in">
+                    <span style="color: #FF0000">*</span> State: 
+            </td>
+            <td width="334" valign="top" title="Please provide the state or territory the store is in">
+                <select id="state" name="state" size="1" class="select" onBlur="this.style.backgroundColor='#ffffff'" onChange="allowedState(this);">
+                   <option value="">Select</option>
+                   <option value="AL">Alabama</option>
+                   <option value="AK">Alaska</option>
+                   <option value="AZ">Arizona</option>
+                   <option value="AR">Arkansas</option>
+                   <option value="CA">California</option>
+                   <option value="CO">Colorado</option>
+                   <option value="CT">Connecticut</option>
+                   <option value="DE">Delaware</option>
+                   <option value="DC">District of Columbia</option>
+                   <option value="FL">Florida</option>
+                   <option value="GA">Georgia</option>
+                   <option value="GU">Guam</option>
+                   <option value="HI">Hawaii</option>
+                   <option value="ID">Idaho</option>
+                   <option value="IL">Illinois</option>
+                   <option value="IN">Indiana</option>
+                   <option value="IA">Iowa</option>
+                   <option value="KS">Kansas</option>
+                   <option value="KY">Kentucky</option>
+                   <option value="LA">Louisiana</option>
+                   <option value="ME">Maine</option>
+                   <option value="MD">Maryland</option>
+                   <option value="MA">Massachusetts</option>
+                   <option value="MI">Michigan</option>
+                   <option value="MN">Minnesota</option>
+                   <option value="MS">Mississippi</option>
+                   <option value="MO">Missouri</option>
+                   <option value="MT">Montana</option>
+                   <option value="NE">Nebraska</option>
+                   <option value="NV">Nevada</option>
+                   <option value="NH">New Hampshire</option>
+                   <option value="NJ">New Jersey</option>
+                   <option value="NM">New Mexico</option>
+                   <option value="NY">New York</option>
+                   <option value="NC">North Carolina</option>
+                   <option value="ND">North Dakota</option>
+                   <option value="OH">Ohio</option>
+                   <option value="OK">Oklahoma</option>
+                   <option value="OR">Oregon</option>
+                   <option value="PA">Pennsylvania</option>
+                   <option value="PR">Puerto Rico</option>
+                   <option value="RI">Rhode Island</option>
+                   <option value="SC">South Carolina</option>
+                   <option value="SD">South Dakota</option>
+                   <option value="TN">Tennessee</option>
+                   <option value="TX">Texas</option>
+                   <option value="UT">Utah</option>
+                   <option value="VT">Vermont</option>
+                   <option value="VI">Virgin Islands</option>
+                   <option value="VA">Virginia</option>
+                   <option value="WA">Washington</option>
+                   <option value="WV">West Virginia</option>
+                   <option value="WI">Wisconsin</option>
+                   <option value="WY">Wyoming</option>
+            	</select>
+			</td>
+            <td width="119">
+            </td>
+        </tr>
+        <tr>
+            <td width="108" valign="top" align="right" title="Please provide the associate ID # of the associate under review">
+               	<span style="color: #FF0000">*</span> Associate ID #: 
+            </td>
+            <td width="69" valign="top" title="Please provide the associate ID # of the associate under review">
+                <input type="text" name="ascID" id="ascID" size="10" maxlength="10" onKeyPress="return validKeys(this, numbersOnly)" onBlur="this.style.backgroundColor='#ffffff'" value="123456789" readonly>
+            </td>
+            <td colspan="2" align="right" valign="top" title="Please provide the hire date of the associate under review">
+            	<span style="color: #FF0000">*</span> Associate Hire Date: 
+            </td>
+            <td colspan="2" valign="top" title="Please provide the hire date of the associate under review">
+        		<input type="text" id="ascHireDate" name="ascHireDate" onKeyPress="return validKeys(this, numbersSlash)" size="10" maxlength="10" value="" onBlur="this.style.backgroundColor='#ffffff'; isValidDate(this);" />		
+        		<button name="select" value="select" type="button" onClick="displayDatePicker('ascHireDate', this);" class="cal" >
+                    <img src="calIcon.png" alt="Select hire date"/>
+          		</button>
+        	</td>
+            <td width="119">
+            </td>
+        </tr>
+    </table>
+	<br>
+    <table width="100%" style="font-size:12px;" cellspacing="0" cellpadding="0">
+        <tr>
+            <td>
+              <h1>Previous Discipline: </h1>
+            </td>
+        </tr>
+    </table>
+    <table width="100%" style="font-size:12px; border:#e1e1e1 1px solid;" cellpadding="2" cellspacing="4">
+        <tr>
+          	<td width="37%" valign="top" align="right" title="Please provide the date of the last discipline given to the associate">
+            	Date of Last Attendance Discipline (leave blank if none):  
+          	</td>
+          	<td valign="top" align="left" title="Please provide the date of the last discipline given to the associate">
+            	<input type="text" id="LADdate" name="LADdate" onKeyPress="return validKeys(this, numbersSlash)" size="10" maxlength="10" value="" onBlur="this.style.backgroundColor='#ffffff'; isValidDate(this);" />
+                <button name="select" value="select" type="button" onClick="displayDatePicker('LADdate', this);" class="cal" >
+              		<img src="calIcon.png" alt="Please provide the date of the last discipline given to the associate"/>
+              	</button>
+            </td>
+		</tr>
+        <tr>
+  	  		<td align="right" valign="top" title="Please provide the current level of discipline given to the associate">
+            	<strong><span style="color: #FF0000">*</span> Current Level of Discipline: </strong>
+           	</td>
+      		<td align="left" valign="top" title="Please provide the current level of discipline given to the associate">
+            	<select name="LADLevel" id="LADLevel" onChange="check120();" onBlur="this.style.backgroundColor='#ffffff'"> 
+                    <option value="" >Select</option>
+                    <option value="NA" >None/NA</option>
+                    <option value="Coaching" >Coaching</option>
+                    <option value="Counseling" >Counseling</option>
+                    <option value="Final" >Final</option> 
+            	</select>
+                <div id="LADDisp" style="display:none">
+                    <br>
+                    <span style="color: #FF0000">Per SOP, an Associate who has been employed by TheCompany for fewer than one hundred twenty (120) days should receive a Final Warning if s/he receives three (3) occurrences within that first 120 day period.   
+                    <br><br>Any associate who received a Discipline within the first 120 days and does not demonstrate further issues within that time period and continues employment beyond that time period <strong>will have their Discipline treated as a Coaching Notice</strong>.  While the Discipline Tracking information cannot be updated, the advice provided by this form will be structured to reflect this treatment.</span>
+              	</div LADDisp>
+    		</td>
+  		</tr>
+	</table>
+	<br>
+    <table width="100%" style="font-size:12px;" cellspacing="0" cellpadding="0">
+        <tr style="background-color:#BFBFBF; ">
+            <th>
+                <h1>Occurrences: </h1>
+            </th>
+        </tr>
+    </table>
+	<table width="859" style="font-size:12px; border:#e1e1e1 1px solid; " cellpadding="2" cellspacing="4">
+ 		<tr>
+    		<td width="8" height="20">
+            	<strong>&nbsp;&nbsp;</strong>
+        	</td>
+      		<td width="280" align="right" valign="top" title="Please enter the type of attendance occurrence">
+          		<strong><span style="color: #FF0000">*</span> Occurrence #1:</strong>
+                &nbsp;&nbsp;&nbsp;&nbsp;
+      			<select name="occtype1" id="occtype1" onChange="changeOccurrence(1, this.value);" onBlur="this.style.backgroundColor='#ffffff'"> 
+                	<option value="" >Select</option>
+            		<option value="Tardiness" >Tardiness</option>
+                	<option value="Two Missed Punches" >Two Missed Punches</option>
+            		<option value="Absence">Absence</option> 
+          		</select>
+    		</td>
+      		<td width="542" valign="top">
+            	<div id="occ1verbiage">
+                	<!-- Occurrence 1 verbiage here -->
+               	</div occ1verbiage>
+            </td>
+    	</tr> 
+    	<tr > 
+    		<td align="left" valign="middle">
+        	</td>
+        	<td colspan="2">
+        		<div id="occ1table" style="display:none">
+                    <table width="100%" style="font-size:12px; " cellpadding="2" cellspacing="4">
+                        <tr>
+                            <td width="50%" align="left" valign="top" title="Please enter the date of the attendance occurrence">
+                                <strong><span style="color: #FF0000">*</span> <span id="occ1datetype">Date of the Tardy occurrence:</span occ1datetype></strong>
+                                &nbsp;&nbsp;&nbsp;
+                                <input type="text" id="occ1date1" name="occ1date1" onKeyPress="return validKeys(this, numbersSlash)" size="10" maxlength="10" value="" onBlur="this.style.backgroundColor='#ffffff'; isValidDate(this);" />
+                                <button name="select" value="select" type="button" onClick="displayDatePicker('occ1date1', this);" class="cal" >
+                                    <img src="calIcon.png" alt="Select the date of the occurrence"/>
+                                </button>
+                            </td>
+                            <td width="50%" valign="top">
+                                <div id="occ1secondpunch" style="display:block" title="Please enter the date of the 2nd attendance occurrence">
+                                    <strong><span style="color: #FF0000">*</span> Date of 2nd missed punch:</strong>
+                                    &nbsp;&nbsp;&nbsp;
+                                    <input type="text" id="occ1date2" name="occ1date2" onKeyPress="return validKeys(this, numbersSlash)" size="10" maxlength="10" value="" onBlur="this.style.backgroundColor='#ffffff'; isValidDate(this);" />
+                                    <button name="select" value="select" type="button" onClick="displayDatePicker('occ1date2', this);" class="cal" >
+                                        <img src="calIcon.png" alt="Select the date of the second missed punch"/>
+                                    </button>
+                                </div occ1secondpunch>
+                                <div id="occ1NCNSdisp" style="display:block">
+                                    <strong><span style="color: #FF0000">*</span> No Call/No Show? </strong>
+                                    <input title="Yes, this is a no call/no show occurrence" type="radio" name="occ1NCNS" id="occ1NCNSYes" onBlur="this.style.backgroundColor='#ffffff'"/>
+                                    Yes &nbsp;&nbsp;&nbsp;&nbsp;
+                                    <input title="No, this is not a no call/no show occurrence"  type="radio" name="occ1NCNS" id="occ1NCNSNo" onBlur="this.style.backgroundColor='#ffffff'"/>
+                                    No 
+                                </div occ1NCNSdisp>
+                            </td>
+                        </tr>
+                    </table>
+               	</div occ1table>
+        	</td>
+      	</tr> 
+	</table>
+	<br>
+	<table width="859" style="font-size:12px; border:#e1e1e1 1px solid; " cellpadding="2" cellspacing="4">
+ 		<tr>
+    		<td width="9" height="20">
+            	<strong>&nbsp;&nbsp;</strong>
+        	</td>
+      		<td width="280" align="right" valign="top" title="Please enter the type of attendance occurrence">
+          		<span id="occ2req">Occurrence #2:</span>
+                &nbsp;&nbsp;&nbsp;&nbsp;
+      			<select name="occtype2" id="occtype2" onChange="changeOccurrence(2, this.value);" onBlur="this.style.backgroundColor='#ffffff'"> 
+                	<option value="" >Select</option>
+            		<option value="Tardiness" >Tardiness</option>
+                	<option value="Two Missed Punches" >Two Missed Punches</option>
+            		<option value="Absence">Absence</option> 
+          		</select>
+            </td>
+      		<td width="541" valign="top">
+            	<div id="occ2verbiage">
+                	<!-- Occurrence 2 verbiage here -->
+               	</div occ2verbiage>
+           	</td>
+    	</tr> 
+    	<tr > 
+    		<td align="left" valign="middle">
+        	</td>
+        	<td colspan="2">
+                <div id="occ2table" style="display:none">
+                    <table width="100%" style="font-size:12px; " cellpadding="2" cellspacing="4">
+                        <tr>
+                            <td width="50%" align="left" valign="top" title="Please enter the date of the attendance occurrence">
+                                <strong><span style="color: #FF0000">*</span> <span id="occ2datetype">Date of the Tardy occurrence:</span occ2datetype></strong>
+                                &nbsp;&nbsp;&nbsp;
+                                <input type="text" id="occ2date1" name="occ2date1" onKeyPress="return validKeys(this, numbersSlash)" size="10" maxlength="10" value="" onBlur="this.style.backgroundColor='#ffffff'; isValidDate(this);" />
+                                <button name="select" value="select" type="button" onClick="displayDatePicker('occ2date1', this);" class="cal" >
+                                    <img src="calIcon.png" alt="Select the date of the occurrence"/>
+                                </button>
+                            </td>
+                            <td width="50%" valign="top">
+                                <div id="occ2secondpunch" style="display:block" title="Please enter the date of the 2nd attendance occurrence">
+                                    <strong><span style="color: #FF0000">*</span> Date of 2nd missed punch:</strong>
+                                    &nbsp;&nbsp;&nbsp;
+                                    <input type="text" id="occ2date2" name="occ2date2" onKeyPress="return validKeys(this, numbersSlash)" size="10" maxlength="10" value="" onBlur="this.style.backgroundColor='#ffffff'; isValidDate(this);" />
+                                    <button name="select" value="select" type="button" onClick="displayDatePicker('occ2date2', this);" class="cal" >
+                                        <img src="calIcon.png" alt="Select the date of the second missed punch"/>
+                                    </button>
+                                </div occ2secondpunch>
+                                <div id="occ2NCNSdisp" style="display:block">
+                                    <strong><span style="color: #FF0000">*</span> No Call/No Show? </strong>
+                                    <input title="Yes, this is a no call/no show occurrence" type="radio" name="occ2NCNS" id="occ2NCNSYes" onClick="prevNCNS(2);" onBlur="this.style.backgroundColor='#ffffff'"/>
+                                    Yes &nbsp;&nbsp;&nbsp;&nbsp;
+                                    <input title="No, this is not a no call/no show occurrence"  type="radio" name="occ2NCNS" id="occ2NCNSNo" onClick="prevNCNS(2);" onBlur="this.style.backgroundColor='#ffffff'"/>
+                                    No 
+                                    <div id="occ2consdisp" style="display:none;margin-left:50px;">
+                                        <br>                     
+                                        <strong><span style="color: #FF0000">*</span> Is this occurrence on a consecutively scheduled shift to the previous No Call/No Show absence? </strong>
+                                        <br>
+                                        <br>
+                                        <input title="Yes, this shift is consecutively scheduled to the previous absence occurrence shift" type="radio" name="occ2cons" id="occ2consYes" onBlur="this.style.backgroundColor='#ffffff'"/>
+                                        Yes &nbsp;&nbsp;&nbsp;&nbsp;
+                                        <input title="No, this shift is not consecutively scheduled to the previous absence occurrence shift"  type="radio" name="occ2cons" id="occ2consNo" onBlur="this.style.backgroundColor='#ffffff'"/>
+                                        No 
+                                    </div occ2consdisp>
+                                </div occ2NCNSdisp>
+                            </td>
+                        </tr>
+                    </table>
+               	</div occ2table>
+        	</td>
+      	</tr> 
+	</table>
+	<br>
+	<table width="859" style="font-size:12px; border:#e1e1e1 1px solid; " cellpadding="2" cellspacing="4">
+ 		<tr>
+    		<td width="8" height="20">
+            	<strong>&nbsp;&nbsp;</strong>
+        	</td>
+      		<td width="280" align="right" valign="top" title="Please enter the type of attendance occurrence">
+          		<span id="occ3req">Occurrence #3:</span>
+                &nbsp;&nbsp;&nbsp;&nbsp;
+      			<select name="occtype3" id="occtype3" onChange="changeOccurrence(3, this.value);" onBlur="this.style.backgroundColor='#ffffff'"> 
+                	<option value="" >Select</option>
+            		<option value="Tardiness" >Tardiness</option>
+                	<option value="Two Missed Punches" >Two Missed Punches</option>
+            		<option value="Absence">Absence</option> 
+          		</select>
+    		</td>
+      		<td width="541" valign="top">
+            	<div id="occ3verbiage">
+                	<!-- Occurrence 3 verbiage here -->
+               	</div occ3verbiage>
+            </td>
+    	</tr> 
+    	<tr> 
+    		<td align="left" valign="middle">
+        	</td>
+        	<td colspan="2">
+            	<div id="occ3table" style="display:none">
+                    <table width="100%" style="font-size:12px; " cellpadding="2" cellspacing="4">
+                        <tr>
+                            <td width="50%" align="left" valign="top" title="Please enter the date of the attendance occurrence">
+                                <strong><span style="color: #FF0000">*</span> <span id="occ3datetype">Date of the Tardy occurrence:</span occ3datetype></strong>
+                                &nbsp;&nbsp;&nbsp;
+                                <input type="text" id="occ3date1" name="occ3date1" onKeyPress="return validKeys(this, numbersSlash)" size="10" maxlength="10" value="" onBlur="this.style.backgroundColor='#ffffff'; isValidDate(this);" />
+                                <button name="select" value="select" type="button" onClick="displayDatePicker('occ3date1', this);" class="cal" >
+                                    <img src="calIcon.png" alt="Select the date of the occurrence"/>
+                                </button>
+                            </td>
+                            <td width="50%" valign="top">
+                                <div id="occ3secondpunch" style="display:block" title="Please enter the date of the 2nd attendance occurrence">
+                                    <strong><span style="color: #FF0000">*</span> Date of 2nd missed punch:</strong>
+                                    &nbsp;&nbsp;&nbsp;
+                                    <input type="text" id="occ3date2" name="occ3date2" onKeyPress="return validKeys(this, numbersSlash)" size="10" maxlength="10" value="" onBlur="this.style.backgroundColor='#ffffff'; isValidDate(this);" />
+                                    <button name="select" value="select" type="button" onClick="displayDatePicker('occ3date2', this);" class="cal" >
+                                        <img src="calIcon.png" alt="Select the date of the second missed punch"/>
+                                    </button>
+                                </div occ3secondpunch>
+                                <div id="occ3NCNSdisp" style="display:block">
+                                    <strong><span style="color: #FF0000">*</span> No Call/No Show? </strong>
+                                    <input title="Yes, this is a no call/no show occurrence" type="radio" name="occ3NCNS" id="occ3NCNSYes" onClick="prevNCNS(3);" onBlur="this.style.backgroundColor='#ffffff'"/>
+                                    Yes &nbsp;&nbsp;&nbsp;&nbsp;
+                                    <input title="No, this is not a no call/no show occurrence"  type="radio" name="occ3NCNS" id="occ3NCNSNo" onClick="prevNCNS(3);" onBlur="this.style.backgroundColor='#ffffff'"/>
+                                    No 
+                                    <div id="occ3consdisp" style="display:none;margin-left:50px;">
+                                        <br>                     
+                                        <strong><span style="color: #FF0000">*</span> Is this occurrence on a consecutively scheduled shift to the previous No Call/No Show absence? </strong>
+                                        <br>
+                                        <br>
+                                        <input title="Yes, this shift is consecutively scheduled to the previous absence occurrence shift" type="radio" name="occ3cons" id="occ3consYes" onBlur="this.style.backgroundColor='#ffffff'"/>
+                                        Yes &nbsp;&nbsp;&nbsp;&nbsp;
+                                        <input title="No, this shift is not consecutively scheduled to the previous absence occurrence shift"  type="radio" name="occ3cons" id="occ3consNo" onBlur="this.style.backgroundColor='#ffffff'"/>
+                                        No 
+                                    </div occ3consdisp>
+                                </div occ3NCNSdisp>
+                            </td>
+                        </tr>
+                    </table>
+               	</div occ3table>
+        	</td>
+      	</tr> 
+	</table>
+	<br>
+	<table width="100%" style="font-size:12px; border:#e1e1e1 1px solid; " cellpadding="2" cellspacing="4">
+		<tr>
+    		<td width="8" height="20">
+            	<strong>&nbsp;&nbsp;</strong>
+        	</td>
+			<td title="Are there any known Accommodation, FMLA, Intermittent, EEO/Agency Charge, or Worker's Compensation situations with this associate?">
+                <strong><span style="color: #FF0000">*</span> Are there any known Accommodation, FMLA, Intermittent, EEO/Agency Charge, or Worker's Compensation situations with this associate?</strong> 
+                <br>
+                <br>
+                <br>
+                <div style="margin-left:50px;">
+            		<input title="Yes, there is a known situation with this associate" type="radio" name="knownAccom" id="knownAccomYes" onBlur="this.style.backgroundColor='#ffffff'"/>
+					Yes &nbsp;&nbsp;&nbsp;&nbsp;
+					<input title="No, there is not a known situation with this associate"  type="radio" name="knownAccom" id="knownAccomNo" onBlur="this.style.backgroundColor='#ffffff'"/>
+					No 
+            	</div>
+			</td>
+    	</tr>
+	</table>
+	<table width="100%" style="font-size:12px;" cellspacing="0" cellpadding="0">
+  		<tr>
+    		<td>
+                <BR><BR>
+                <center>
+                    <input type="SUBMIT" value="Submit" class="wpsButtonText" onClick="return(myfunction());" style="cursor: hand">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                                    <input type="button" value="Clear Form" class="wpsButtonText" onClick="clearFields()" style="cursor: hand">
+                </center>
+			</td>
+		</tr>
+	</table>
+</form>
+</center>
+</body>
+</html>
+
